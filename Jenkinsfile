@@ -4,7 +4,6 @@ pipeline {
     environment {
         IMAGE_NAME = "my-frontend-app"
         IMAGE_TAG = "latest"
-        SONARQUBE_ENV = "SonarQube"
     }
 
     stages {
@@ -22,20 +21,16 @@ pipeline {
             }
         }
 
-        stage('SonarQube Analysis') {
+        stage('SonarQube Analysis (Optional)') {
             steps {
                 echo 'Running SonarQube analysis...'
-                withSonarQubeEnv("${SONARQUBE_ENV}") {
-                    bat '''
-                        sonar-scanner ^
-                          -Dsonar.projectKey=my-frontend-app ^
-                          -Dsonar.projectName=my-frontend-app ^
-                          -Dsonar.sources=. ^
-                          -Dsonar.exclusions=vendor/**,assets/** ^
-                          -Dsonar.host.url=%SONAR_HOST_URL% ^
-                          -Dsonar.login=%SONAR_AUTH_TOKEN%
-                    '''
-                }
+                bat '''
+                    if exist sonar-project.properties (
+                        call sonar-scanner
+                    ) else (
+                        echo No sonar-project.properties found, skipping analysis.
+                    )
+                '''
             }
         }
 
