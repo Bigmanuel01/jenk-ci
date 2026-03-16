@@ -11,13 +11,13 @@ pipeline {
         stage('Build Code') {
             steps {
                 echo 'Building code...'
-                sh '''
-                    if [ -f package.json ]; then
-                        npm install
-                        npm run build || echo "No build script found, skipping..."
-                    else
-                        echo "No package.json found, treating as static project."
-                    fi
+                bat '''
+                    if exist package.json (
+                        call npm install
+                        call npm run build
+                    ) else (
+                        echo No package.json found, treating as static project.
+                    )
                 '''
             }
         }
@@ -26,14 +26,14 @@ pipeline {
             steps {
                 echo 'Running SonarQube analysis...'
                 withSonarQubeEnv("${SONARQUBE_ENV}") {
-                    sh '''
-                        sonar-scanner \
-                          -Dsonar.projectKey=my-frontend-app \
-                          -Dsonar.projectName=my-frontend-app \
-                          -Dsonar.sources=. \
-                          -Dsonar.exclusions=vendor/**,assets/** \
-                          -Dsonar.host.url=$SONAR_HOST_URL \
-                          -Dsonar.login=$SONAR_AUTH_TOKEN
+                    bat '''
+                        sonar-scanner ^
+                          -Dsonar.projectKey=my-frontend-app ^
+                          -Dsonar.projectName=my-frontend-app ^
+                          -Dsonar.sources=. ^
+                          -Dsonar.exclusions=vendor/**,assets/** ^
+                          -Dsonar.host.url=%SONAR_HOST_URL% ^
+                          -Dsonar.login=%SONAR_AUTH_TOKEN%
                     '''
                 }
             }
@@ -42,7 +42,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 echo 'Building Docker image...'
-                sh 'docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .'
+                bat 'docker build -t %IMAGE_NAME%:%IMAGE_TAG% .'
             }
         }
 
