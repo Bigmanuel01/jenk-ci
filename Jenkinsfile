@@ -1,48 +1,64 @@
 pipeline {
     agent any
 
+    environment {
+        IMAGE_NAME = "my-frontend-app"
+        IMAGE_TAG = "latest"
+        SONARQUBE_ENV = "SonarQube"
+    }
+
     stages {
-        stage('Checkout') {
+        stage('Build Code') {
             steps {
-                // This pulls your LEKAN-KUNLE project from GitHub
-                checkout scm
+                echo 'Building code...'
+                sh '''
+                    if [ -f package.json ]; then
+                        npm install
+                        npm run build || echo "No build script found, skipping..."
+                    else
+                        echo "No package.json found, treating as static project."
+                    fi
+                '''
             }
         }
 
-        stage('Lint & Validate') {
+        stage('SonarQube Analysis') {
             steps {
-                echo 'Checking HTML and CSS for errors...'
-                // If you use tools like stylelint or htmlhint, run them here:
-                // sh 'npx htmlhint index.html'
+                echo 'Running SonarQube analysis...'
+                withSonarQubeEnv("${SONARQUBE_ENV}") {
+                    sh '''
+                        sonar-scanner \
+                          -Dsonar.projectKey=my-frontend-app \
+                          -Dsonar.projectName=my-frontend-app \
+                          -Dsonar.sources=. \
+                          -Dsonar.exclusions=vendor/**,assets/** \
+                          -Dsonar.host.url=$SONAR_HOST_URL \
+                          -Dsonar.login=$SONAR_AUTH_TOKEN
+                    '''
+                }
             }
         }
 
-        stage('Archive Artifacts') {
+        stage('Build Docker Image') {
             steps {
-                echo 'Bundling files for deployment...'
-                // This saves your files so they can be downloaded from Jenkins
-                archiveArtifacts artifacts: 'index.html, style.css, index.js, assets/**', fingerprint: true
+                echo 'Building Docker image...'
+                sh 'docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .'
             }
         }
 
         stage('Deploy') {
             steps {
-                echo 'Deploying to Web Server...'
-                // Example: Copying files to a local web server directory
-                // sh 'cp -R . /var/www/html/my-site'
+                echo 'deploying...'
             }
         }
     }
 
     post {
-        always {
-            echo 'Pipeline finished!'
-        }
         success {
-            echo 'Deployment successful. Your site is live.'
+            echo 'Pipeline completed successfully.'
         }
         failure {
-            echo 'Build failed. Please check the logs.'
+            echo 'Pipeline failed.'
         }
     }
 }
