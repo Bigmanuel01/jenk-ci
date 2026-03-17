@@ -5,6 +5,8 @@ pipeline {
         IMAGE_NAME = "my-frontend-app"
         IMAGE_TAG = "latest"
         DOCKERHUB_REPO = "bigzed12/my-frontend-app"
+        // Fix for WSL: connects Jenkins to Docker Desktop on Windows
+        DOCKER_HOST = "tcp://localhost:2375" 
     }
 
     stages {
@@ -22,16 +24,20 @@ pipeline {
             }
         }
 
-        stage('SonarQube Analysis (Optional)') {
+        stage('SonarQube Analysis') {
             steps {
-                echo 'Running SonarQube analysis...'
-                sh '''
-                    if [ -f sonar-project.properties ]; then
-                        sonar-scanner
-                    else
-                        echo "No sonar-project.properties found, skipping analysis."
-                    fi
-                '''
+                script {
+                    // This pulls the scanner you configured in the "Tools" menu
+                    def scannerHome = tool 'sonarqube'
+                    
+                    // 'sonarqube' here refers to the "SonarQube Server" name from your first screenshot
+                    withSonarQubeEnv('sonarqube') {
+                        sh "${scannerHome}/bin/sonar-scanner \
+                        -Dsonar.projectKey=my-frontend-app \
+                        -Dsonar.sources=. \
+                        -Dsonar.host.url=http://localhost:9000"
+                    }
+                }
             }
         }
 
@@ -44,6 +50,7 @@ pipeline {
 
         stage('Push to Docker Hub') {
             steps {
+                // Ensure the Credentials ID 'dockerhub' exists in Jenkins Credentials
                 withCredentials([usernamePassword(credentialsId: 'dockerhub', passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
                     sh '''
                         echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
@@ -57,7 +64,7 @@ pipeline {
 
         stage('Deploy') {
             steps {
-                echo 'deploying...'
+                echo 'Deploying application...'
             }
         }
     }
@@ -67,7 +74,7 @@ pipeline {
             echo 'Pipeline completed successfully.'
         }
         failure {
-            echo 'Pipeline failed.'
+            echo 'Pipeline failed. Check SonarQube or Docker logs.'
         }
     }
 }
