@@ -4,6 +4,7 @@ pipeline {
     environment {
         IMAGE_NAME = "my-frontend-app"
         IMAGE_TAG = "latest"
+        DOCKERHUB_REPO = "bigzed12/my-frontend-app"
     }
 
     stages {
@@ -13,7 +14,7 @@ pipeline {
                 sh '''
                     if [ -f package.json ]; then
                         npm install
-                        npm run build || echo "No build script found"
+                        npm run build
                     else
                         echo "No package.json found, treating as static project."
                     fi
@@ -37,7 +38,20 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 echo 'Building Docker image...'
-                sh 'docker build -t $IMAGE_NAME:$IMAGE_TAG .'
+                sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
+            }
+        }
+
+        stage('Push to Docker Hub') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub', passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
+                    sh '''
+                        echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
+                        docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${DOCKERHUB_REPO}:${IMAGE_TAG}
+                        docker push ${DOCKERHUB_REPO}:${IMAGE_TAG}
+                        docker logout
+                    '''
+                }
             }
         }
 
@@ -57,4 +71,3 @@ pipeline {
         }
     }
 }
-
