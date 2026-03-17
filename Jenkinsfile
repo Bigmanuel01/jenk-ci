@@ -5,8 +5,6 @@ pipeline {
         IMAGE_NAME = "my-frontend-app"
         IMAGE_TAG = "latest"
         DOCKERHUB_REPO = "bigzed12/my-frontend-app"
-        // Fix for WSL: connects Jenkins to Docker Desktop on Windows
-        DOCKER_HOST = "tcp://localhost:2375" 
     }
 
     stages {
