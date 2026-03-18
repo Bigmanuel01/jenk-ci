@@ -25,10 +25,8 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 script {
-                    // This pulls the scanner you configured in the "Tools" menu
                     def scannerHome = tool 'sonarqube'
                     
-                    // 'sonarqube' here refers to the "SonarQube Server" name from your first screenshot
                     withSonarQubeEnv('sonarqube') {
                         sh "${scannerHome}/bin/sonar-scanner \
                         -Dsonar.projectKey=my-frontend-app \
@@ -46,9 +44,17 @@ pipeline {
             }
         }
 
+        stage('Trivy Security Scan') {
+            steps {
+                echo 'Running Trivy scan...'
+                sh '''
+                    trivy image --exit-code 1 --severity HIGH,CRITICAL ${IMAGE_NAME}:${IMAGE_TAG}
+                '''
+            }
+        }
+
         stage('Push to Docker Hub') {
             steps {
-                // Ensure the Credentials ID 'dockerhub' exists in Jenkins Credentials
                 withCredentials([usernamePassword(credentialsId: 'dockerhub', passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
                     sh '''
                         echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
@@ -72,7 +78,7 @@ pipeline {
             echo 'Pipeline completed successfully.'
         }
         failure {
-            echo 'Pipeline failed. Check SonarQube or Docker logs.'
+            echo 'Pipeline failed. Check SonarQube, Trivy, or Docker logs.'
         }
     }
 }
